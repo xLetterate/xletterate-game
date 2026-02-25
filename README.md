@@ -5,8 +5,8 @@ xletterate-game
 Static site for tracking wins in XLetterate game via GitHub Pages.
 
 ## Live Pages
-- [Landing/Leaderboard](https://yourusername.github.io/xletterate-game/)
-- [User Wins Example](https://yourusername.github.io/xletterate-game/wins/xuser1)
+- [Landing/Leaderboard](https://xLetterate.github.io/xletterate-game/)
+- [User Wins Example](https://xLetterate.github.io/xletterate-game/wins/xuser1)
 
 ## Data Management
 - All wins in `data/plays.json` (array of objects: {user_handle, play_date, guesses, time_sec}).
