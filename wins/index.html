@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XLetterate Wins</title>
+  <style>body { font-family: sans-serif; max-width: 600px; margin: auto; }</style>
+</head>
+<body>
+  <script>
+    const CACHE_KEY = 'xletterate-plays';
+    const CACHE_TTL = 3600000; // 1 hour in ms
+
+    async function getPlays() {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const cachedTime = localStorage.getItem(`${CACHE_KEY}-time`);
+      if (cached && cachedTime && Date.now() - cachedTime < CACHE_TTL) {
+        return JSON.parse(cached);
+      }
+      const res = await fetch('/data/plays.json');
+      if (!res.ok) throw new Error('Fetch failed');
+      const plays = await res.json();
+      localStorage.setItem(CACHE_KEY, JSON.stringify(plays));
+      localStorage.setItem(`${CACHE_KEY}-time`, Date.now());
+      return plays;
+    }
+
+    function calcStreak(plays) {
+      if (plays.length < 2) return 0;
+      let streak = 1;
+      let maxStreak = 1;
+      for (let i = 1; i < plays.length; i++) {
+        const prevDate = new Date(plays[i-1].play_date);
+        const currDate = new Date(plays[i].play_date);
+        if ((prevDate - currDate) === 86400000) { // 1 day ms
+          streak++;
+          maxStreak = Math.max(maxStreak, streak);
+        } else {
+          streak = 1;
+        }
+      }
+      return maxStreak;
+    }
+
+    async function loadUserWins() {
+      const handle = (new URLSearchParams(location.search).get('user') ||
+                      location.pathname.split('/wins/')[1] || '').toLowerCase();
+      if (!handle) return document.body.innerHTML = '<p>No user specified</p>';
+
+      try {
+        const plays = await getPlays();
+        const userPlays = plays.filter(p => p.user_handle === handle);
+        if (!userPlays.length) return document.body.innerHTML = `<p>No wins for @${handle}</p>`;
+
+        let html = `<h2>@${handle}'s XLetterate Wins 🏅</h2>`;
+        userPlays.forEach(p => {
+          const mins = Math.floor(p.time_sec / 60);
+          const secs = p.time_sec % 60;
+          const emoji = p.guesses <= 2 ? '🚀' : p.guesses === 3 ? '👍' : '';
+          html += `<div>${p.play_date}: ${p.guesses} guesses • ${mins}m ${secs}s ${emoji}</div>`;
+        });
+
+        const bestG = Math.min(...userPlays.map(p => p.guesses));
+        const bestT = Math.min(...userPlays.map(p => p.time_sec));
+        const streak = calcStreak(userPlays);
+        html += `<p>Best: ${bestG} guesses 🏆 | Fastest: ${Math.floor(bestT/60)}m ${bestT%60}s ⏱️</p>`;
+        if (streak > 1) html += `<p>Longest streak: ${streak} days 🔥</p>`;
+
+        document.body.innerHTML = html;
+      } catch (e) {
+        document.body.innerHTML = '<p>Error loading data</p>';
+      }
+    }
+
+    loadUserWins();
+  </script>
+</body>
+</html>
