@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>XLetterate Game</title>
+  <style>body { font-family: sans-serif; max-width: 800px; margin: auto; }</style>
+</head>
+<body>
+  <h1>XLetterate Wins Tracker</h1>
+  <p>View your wins: <a href="/wins/">/wins?user=yourhandle</a> or /wins/yourhandle</p>
+  <div id="leaderboard"></div>
+
+  <script>
+    const CACHE_KEY = 'xletterate-plays';
+    const CACHE_TTL = 3600000; // 1 hour
+
+    async function getPlays() {
+      const cached = localStorage.getItem(CACHE_KEY);
+      const cachedTime = localStorage.getItem(`${CACHE_KEY}-time`);
+      if (cached && cachedTime && Date.now() - cachedTime < CACHE_TTL) {
+        return JSON.parse(cached);
+      }
+      const res = await fetch('/data/plays.json');
+      if (!res.ok) throw new Error('Fetch failed');
+      const plays = await res.json();
+      localStorage.setItem(CACHE_KEY, JSON.stringify(plays));
+      localStorage.setItem(`${CACHE_KEY}-time`, Date.now());
+      return plays;
+    }
+
+    async function loadDailyLeaderboard() {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      try {
+        const plays = await getPlays();
+        const todayPlays = plays.filter(p => p.play_date === today);
+        if (!todayPlays.length) {
+          document.getElementById('leaderboard').innerHTML = '<p>No wins today yet 📅</p>';
+          return;
+        }
+
+        todayPlays.sort((a, b) => a.guesses - b.guesses || a.time_sec - b.time_sec);
+        let html = '<h2>Today\'s Leaderboard 📊</h2><ol>';
+        todayPlays.slice(0, 20).forEach((p, i) => {
+          const mins = Math.floor(p.time_sec / 60);
+          const secs = p.time_sec % 60;
+          html += `<li>@${p.user_handle}: ${p.guesses} guesses • ${mins}m ${secs}s ${i < 3 ? '🥇🥈🥉'[i] : ''}</li>`;
+        });
+        html += '</ol>';
+        document.getElementById('leaderboard').innerHTML = html;
+      } catch (e) {
+        document.getElementById('leaderboard').innerHTML = '<p>Error loading leaderboard</p>';
+      }
+    }
+    loadDailyLeaderboard();
+  </script>
+</body>
+</html>
